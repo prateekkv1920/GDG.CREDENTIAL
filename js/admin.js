@@ -65,6 +65,8 @@ const progressBar = document.getElementById('progress-bar');
 const progressText = document.getElementById('progress-text');
 const statusLog = document.getElementById('status-log');
 
+const skipExistingCheckbox = document.getElementById('skip-existing');
+
 // State: Store collected certificate image files
 let selectedImageFiles = [];
 
@@ -527,6 +529,28 @@ uploadForm.addEventListener('submit', async (e) => {
     }
     addLog(`Indexed <strong>${Object.keys(imageMap).length}</strong> certificate image(s).`, 'success');
 
+    // ── Check Existing Records if "Skip Already Uploaded" is checked ──
+    const shouldSkipExisting = skipExistingCheckbox && skipExistingCheckbox.checked;
+    const existingEmailsSet = new Set();
+
+    if (shouldSkipExisting) {
+      addLog('Checking Supabase for already uploaded records...', 'info');
+      try {
+        const { data: existingRecords, error: fetchErr } = await supabase
+          .from('certificates')
+          .select('email');
+
+        if (!fetchErr && existingRecords) {
+          existingRecords.forEach(r => {
+            if (r.email) existingEmailsSet.add(r.email.toLowerCase().trim());
+          });
+          addLog(`Found <strong>${existingEmailsSet.size}</strong> existing record(s) in Supabase. Only missing/failed records will be uploaded.`, 'info');
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing records:', err);
+      }
+    }
+
     // ── Step 4: Process Each Row directly into Supabase ──
     addLog('', 'divider');
     addLog(`Starting Supabase upload pipeline for <strong>${csvData.length}</strong> record(s)...`, 'info');
@@ -543,6 +567,14 @@ uploadForm.addEventListener('submit', async (e) => {
       const email = row.gmail.trim().toLowerCase();
       const password = row.password.trim();
       const certFilename = (row.certificate_filename || '').trim();
+
+      // Skip already uploaded if option is selected
+      if (shouldSkipExisting && existingEmailsSet.has(email)) {
+        addLog(`Row ${rowNum} (${name}): Already uploaded in Supabase — Skipped.`, 'info');
+        skipCount++;
+        updateProgress(i + 1, csvData.length);
+        continue;
+      }
 
       // Match certificate image
       const cleanCert = certFilename.toLowerCase().replace(/\.[^/.]+$/, "");

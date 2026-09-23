@@ -263,6 +263,14 @@
           <!-- Divider -->
           <div class="border-t border-white/5"></div>
 
+          <!-- Skip Existing Option -->
+          <div class="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 border border-white/10">
+            <input type="checkbox" id="skip-existing" class="w-4 h-4 rounded text-gdg-blue accent-gdg-blue cursor-pointer">
+            <label for="skip-existing" class="text-xs text-white/80 cursor-pointer select-none">
+              ⚡ <strong>Skip already uploaded records</strong> (only upload missing / failed participants)
+            </label>
+          </div>
+
           <!-- Submit -->
           <div class="flex items-center gap-4">
             <button type="submit" id="upload-btn" class="btn-primary py-3.5 px-8 rounded-xl text-base">
