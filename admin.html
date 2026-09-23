@@ -137,12 +137,43 @@
     <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
       <!-- Page Header -->
-      <div class="mb-8">
-        <h2 class="font-display text-2xl sm:text-3xl font-bold text-white mb-2">Upload Certificates</h2>
-        <p class="text-white/40 text-sm max-w-xl">
-          Upload a CSV file with participant details and their corresponding certificate images.
-          The system will process, match, and store everything in Firebase.
-        </p>
+      <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-white mb-1.5">Upload Certificates</h2>
+          <p class="text-white/40 text-sm max-w-xl">
+            Upload participant CSV and certificate images to store them permanently in Supabase Cloud.
+          </p>
+        </div>
+
+        <!-- Supabase Cloud Status Indicator -->
+        <div id="supabase-status-badge" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-white/70">
+          <span id="supabase-status-dot" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+          <span id="supabase-status-text">Checking Supabase DB...</span>
+        </div>
+      </div>
+
+      <!-- Supabase Setup Alert (Shown if SQL Table not created yet) -->
+      <div id="supabase-setup-alert" class="glass-card-dark rounded-2xl p-5 mb-6 border border-gdg-yellow/30 bg-gdg-yellow/5 hidden">
+        <div class="flex items-start gap-3">
+          <div class="p-2 rounded-lg bg-gdg-yellow/15 text-gdg-yellow flex-shrink-0 mt-0.5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-sm font-bold text-white mb-1">One-Time Supabase Database Setup Required</h4>
+            <p class="text-white/60 text-xs leading-relaxed mb-3">
+              The <code class="text-gdg-yellow bg-black/30 px-1.5 py-0.5 rounded">certificates</code> table needs to be created in your Supabase project once so your website can permanently store data for all 280 participants.
+            </p>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <a href="https://supabase.com/dashboard/project/anrgvpowpwncyneqxlcm/sql/new" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gdg-blue text-white text-xs font-semibold hover:bg-blue-600 transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open Supabase SQL Editor
+              </a>
+              <button type="button" id="btn-copy-sql" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/10 text-white/90 border border-white/15 text-xs font-semibold hover:bg-white/20 transition">
+                📋 Copy SQL Script
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Upload Form Card -->

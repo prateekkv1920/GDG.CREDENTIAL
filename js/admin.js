@@ -132,6 +132,77 @@ if (adminLogout) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Supabase Database Health Check & SQL Setup Helper
+// ══════════════════════════════════════════════════════════════
+
+const supabaseStatusDot = document.getElementById('supabase-status-dot');
+const supabaseStatusText = document.getElementById('supabase-status-text');
+const supabaseSetupAlert = document.getElementById('supabase-setup-alert');
+const btnCopySql = document.getElementById('btn-copy-sql');
+
+const SQL_SETUP_CODE = `-- 1. Create the certificates table
+CREATE TABLE IF NOT EXISTS certificates (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  certificate_url TEXT NOT NULL,
+  certificate_filename TEXT NOT NULL,
+  event_name TEXT DEFAULT 'DevHack 2026',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Enable Row Level Security (RLS)
+ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+
+-- 3. Allow public reading of certificates
+CREATE POLICY "Allow public read" ON certificates FOR SELECT TO anon USING (true);
+
+-- 4. Allow public insert / upsert from admin
+CREATE POLICY "Allow public insert" ON certificates FOR ALL TO anon USING (true);
+`;
+
+if (btnCopySql) {
+  btnCopySql.addEventListener('click', () => {
+    navigator.clipboard.writeText(SQL_SETUP_CODE).then(() => {
+      btnCopySql.textContent = '✅ Copied to Clipboard!';
+      setTimeout(() => { btnCopySql.textContent = '📋 Copy SQL Script'; }, 2500);
+    }).catch(() => {
+      prompt('Copy the SQL script below:', SQL_SETUP_CODE);
+    });
+  });
+}
+
+async function checkSupabaseHealth() {
+  if (!supabaseStatusDot || !supabaseStatusText) return;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('certificates').select('id').limit(1);
+
+      if (error) {
+        console.warn('Supabase table check:', error);
+        supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-red-400 animate-pulse';
+        supabaseStatusText.textContent = 'Supabase Table Missing';
+        if (supabaseSetupAlert) supabaseSetupAlert.classList.remove('hidden');
+      } else {
+        supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-gdg-green';
+        supabaseStatusText.innerHTML = '🟢 Supabase DB Connected &amp; Ready';
+        if (supabaseSetupAlert) supabaseSetupAlert.classList.add('hidden');
+      }
+    } catch (err) {
+      supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
+      supabaseStatusText.textContent = 'Supabase Offline';
+    }
+  } else {
+    supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
+    supabaseStatusText.textContent = 'Local IndexedDB Mode';
+  }
+}
+
+checkSupabaseHealth();
+
+// ══════════════════════════════════════════════════════════════
 // Certificate Image Selection & Folder Upload Handlers
 // ══════════════════════════════════════════════════════════════
 
