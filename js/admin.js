@@ -29,7 +29,7 @@ import { saveParticipantLocal, fileToDataURL } from './storage-adapter.js';
 // ============================================================
 // 🔑 ADMIN PASSPHRASE
 // ============================================================
-const ADMIN_PASSPHRASE = 'devhack2026admin';
+const ADMIN_PASSPHRASE = 'PRATEEK@21231538';
 
 // ── SHA-256 Password Hashing (Web Crypto API) ──
 async function hashPassword(password) {
