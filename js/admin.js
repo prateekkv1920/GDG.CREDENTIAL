@@ -152,14 +152,42 @@ CREATE TABLE IF NOT EXISTS certificates (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Enable Row Level Security (RLS)
+-- 2. Enable Row Level Security (RLS) on certificates table
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 
--- 3. Allow public reading of certificates
+-- 3. Allow public reading of certificates table
+DROP POLICY IF EXISTS "Allow public read" ON certificates;
 CREATE POLICY "Allow public read" ON certificates FOR SELECT TO anon USING (true);
 
 -- 4. Allow public insert / upsert from admin
+DROP POLICY IF EXISTS "Allow public insert" ON certificates;
 CREATE POLICY "Allow public insert" ON certificates FOR ALL TO anon USING (true);
+
+-- 5. Create the storage bucket if not exists & make it public
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('certificates', 'certificates', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- 6. Enable public uploads to the certificates storage bucket
+DROP POLICY IF EXISTS "Allow public storage upload" ON storage.objects;
+CREATE POLICY "Allow public storage upload"
+ON storage.objects FOR INSERT
+TO anon
+WITH CHECK (bucket_id = 'certificates');
+
+-- 7. Enable public updates/upserts to storage
+DROP POLICY IF EXISTS "Allow public storage update" ON storage.objects;
+CREATE POLICY "Allow public storage update"
+ON storage.objects FOR UPDATE
+TO anon
+USING (bucket_id = 'certificates');
+
+-- 8. Enable public reading of storage objects
+DROP POLICY IF EXISTS "Allow public storage select" ON storage.objects;
+CREATE POLICY "Allow public storage select"
+ON storage.objects FOR SELECT
+TO anon
+USING (bucket_id = 'certificates');
 `;
 
 if (btnCopySql) {
@@ -567,7 +595,8 @@ uploadForm.addEventListener('submit', async (e) => {
             .upload(storagePath, imageFile, { upsert: true });
 
           if (uploadErr) {
-            console.warn('Storage upload error, using direct public URL:', uploadErr);
+            console.error('Storage upload error:', uploadErr);
+            addLog(`Row ${rowNum} (${name}): Storage upload warning — ${uploadErr.message}. Ensure Storage RLS policies are applied in Supabase!`, 'warning');
           }
 
           const { data: urlData } = supabase.storage
