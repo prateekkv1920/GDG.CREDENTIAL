@@ -201,11 +201,41 @@ function isImageFile(filename) {
   return VALID_IMAGE_EXTS.some(ext => lower.endsWith(ext));
 }
 
-function fileToDataURL(file) {
-  return new Promise((resolve, reject) => {
+function compressCertificateImage(file, maxWidth = 1600, quality = 0.85) {
+  return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        } catch (err) {
+          console.warn('Canvas compression error, using raw file data:', err);
+          resolve(e.target.result);
+        }
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve('');
     reader.readAsDataURL(file);
   });
 }
@@ -547,37 +577,21 @@ uploadForm.addEventListener('submit', async (e) => {
       try {
         const effectiveCertName = imageFile.name.split('/').pop().split('\\').pop();
         const passwordHash = await hashPassword(password);
-        const storagePath = `${eventName}/${effectiveCertName}`;
 
-        // Convert image to direct Base64 Data URL
-        let downloadURL = await fileToDataURL(imageFile);
+        // Compress image on the fly (~50KB WebP/JPEG) for instant upload & 0 database disk bloat
+        const downloadURL = await compressCertificateImage(imageFile);
 
-        // Optional Supabase Storage attempt
-        try {
-          const { data: uploadData, error: uploadErr } = await supabase.storage
-            .from('certificates')
-            .upload(storagePath, imageFile, { upsert: true });
-
-          if (!uploadErr) {
-            const { data: urlData } = supabase.storage
-              .from('certificates')
-              .getPublicUrl(storagePath);
-
-            if (urlData && urlData.publicUrl) {
-              downloadURL = urlData.publicUrl;
-            }
-          }
-        } catch (e) {
-          // Keep Base64 dataURL
-        }
-
-        // Insert / Upsert into Supabase Table 'certificates'
+        // Insert / Upsert directly into Supabase Table 'certificates'
         const { error: dbErr } = await supabase
           .from('certificates')
           .upsert({
             name: name,
             email: email,
             password_hash: passwordHash,
+            certificate_url: downloadURL,
+            certificate_filename: effectiveCertName,
+            event_name: eventName
+          }, { onConflict: 'email' });
             certificate_url: downloadURL,
             certificate_filename: effectiveCertName,
             event_name: eventName
