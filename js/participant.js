@@ -210,30 +210,41 @@ async function handleDownload() {
   downloadBtn.disabled = true;
   downloadBtnText.textContent = 'Downloading...';
 
+  const safeName = currentUser.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `${safeName}_DevHack2026_Certificate.png`;
+
   try {
-    const response = await fetch(currentUser.certificateUrl);
-    if (!response.ok) throw new Error('Failed to fetch certificate image');
+    if (currentUser.certificateUrl.startsWith('data:')) {
+      // Direct Data URL download
+      const a = document.createElement('a');
+      a.href = currentUser.certificateUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // Supabase / Remote URL
+      const response = await fetch(currentUser.certificateUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error('Remote image fetch failed');
 
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
 
-    const safeName = currentUser.name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${safeName}_DevHack2026_Certificate.png`;
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+    }
   } catch (error) {
-    console.error('Download error:', error);
+    console.warn('Direct fetch failed, falling back to window open/download:', error);
     const a = document.createElement('a');
     a.href = currentUser.certificateUrl;
     a.target = '_blank';
-    a.download = `${currentUser.name}_Certificate.png`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

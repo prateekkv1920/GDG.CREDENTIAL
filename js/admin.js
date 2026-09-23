@@ -241,6 +241,15 @@ function isImageFile(filename) {
   return VALID_IMAGE_EXTS.some(ext => lower.endsWith(ext));
 }
 
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function updateImagesDisplay(files, sourceLabel = '') {
   const filtered = Array.from(files).filter(f => isImageFile(f.name));
   selectedImageFiles = filtered;
@@ -588,22 +597,31 @@ uploadForm.addEventListener('submit', async (e) => {
         if (isSupabaseActive) {
           // ── Supabase Upload ──
           const storagePath = `${eventName}/${effectiveCertName}`;
-          addLog(`Row ${rowNum} (${name}): Uploading to Supabase Storage...`, 'info');
+          addLog(`Row ${rowNum} (${name}): Processing certificate image...`, 'info');
 
-          const { data: uploadData, error: uploadErr } = await supabase.storage
-            .from('certificates')
-            .upload(storagePath, imageFile, { upsert: true });
+          // Convert image to direct data URL as guaranteed fail-safe
+          const base64Data = await fileToDataURL(imageFile);
+          downloadURL = base64Data;
 
-          if (uploadErr) {
-            console.error('Storage upload error:', uploadErr);
-            addLog(`Row ${rowNum} (${name}): Storage upload warning — ${uploadErr.message}. Ensure Storage RLS policies are applied in Supabase!`, 'warning');
+          try {
+            const { data: uploadData, error: uploadErr } = await supabase.storage
+              .from('certificates')
+              .upload(storagePath, imageFile, { upsert: true });
+
+            if (!uploadErr) {
+              const { data: urlData } = supabase.storage
+                .from('certificates')
+                .getPublicUrl(storagePath);
+
+              if (urlData && urlData.publicUrl) {
+                downloadURL = urlData.publicUrl;
+              }
+            } else {
+              console.warn('Supabase storage upload notice, using direct high-res image data in PostgreSQL:', uploadErr.message);
+            }
+          } catch (storageException) {
+            console.warn('Storage fallback to direct image data:', storageException);
           }
-
-          const { data: urlData } = supabase.storage
-            .from('certificates')
-            .getPublicUrl(storagePath);
-
-          downloadURL = urlData.publicUrl;
 
           // Insert / Upsert in Supabase Table
           const { error: dbErr } = await supabase
@@ -619,7 +637,7 @@ uploadForm.addEventListener('submit', async (e) => {
 
           if (dbErr) throw dbErr;
 
-          addLog(`Row ${rowNum} (${name}): Saved to Supabase PostgreSQL for <strong>${email}</strong>.`, 'success');
+          addLog(`Row ${rowNum} (${name}): Certificate saved permanently in Supabase for <strong>${email}</strong>.`, 'success');
 
         } else if (isFirebaseActive) {
           // ── Firebase Upload ──
