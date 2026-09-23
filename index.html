@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevHack 2026 — Certificate Portal | GDG on Campus IIMT</title>
+  <meta name="description" content="Access and download your DevHack 2026 participation certificate. Hosted by Google Developer Groups on Campus IIMT Meerut.">
+  <meta name="theme-color" content="#1a1a2e">
+
+  <!-- Favicon (GDG Blue) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            'display': ['Space Grotesk', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            'gdg-blue': '#4285F4',
+            'gdg-red': '#EA4335',
+            'gdg-yellow': '#FBBC05',
+            'gdg-green': '#34A853',
+            'gdg-dark': '#202124',
+            'gdg-surface': '#F8F9FA',
+            'gdg-text': '#3C4043',
+            'gdg-text-secondary': '#5F6368',
+            'gdg-border': '#DADCE0',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="font-sans min-h-screen gradient-bg overflow-x-hidden">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Decorative Floating Orbs                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="orb orb-blue"></div>
+  <div class="orb orb-red"></div>
+  <div class="orb orb-green"></div>
+  <div class="orb orb-yellow"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Main Container                               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8 sm:py-12">
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- LOGIN VIEW                                  -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div id="login-view" class="w-full max-w-md animate-fade-in-up">
+
+      <!-- Branding Header -->
+      <div class="text-center mb-8">
+        <!-- GDG Dots -->
+        <div class="gdg-dots justify-center mb-5">
+          <span></span><span></span><span></span><span></span>
+        </div>
+
+        <!-- Event Logo -->
+        <div class="mb-3">
+          <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white/70 text-xs font-medium tracking-wider uppercase">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            GDG on Campus IIMT Meerut
+          </span>
+        </div>
+
+        <h1 class="font-display text-4xl sm:text-5xl font-bold text-white mb-2 tracking-tight">
+          Dev<span class="bg-gradient-to-r from-gdg-blue via-gdg-red to-gdg-yellow bg-clip-text text-transparent">Hack</span> 2026
+        </h1>
+        <p class="text-white/50 text-sm font-medium tracking-wide">
+          Certificate Verification Portal
+        </p>
+      </div>
+
+      <!-- Login Card -->
+      <div class="glass-card rounded-2xl p-7 sm:p-8 shadow-2xl">
+        <!-- Card Header -->
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-gdg-blue/10 to-gdg-green/10 mb-4 border border-gdg-blue/10">
+            <svg class="w-7 h-7 text-gdg-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <h2 class="font-display text-xl font-bold text-gdg-dark">Access Your Certificate</h2>
+          <p class="text-gdg-text-secondary text-sm mt-1">Enter the credentials shared with you</p>
+        </div>
+
+        <!-- GDG Rainbow Divider -->
+        <div class="gdg-divider mb-6 rounded-full opacity-60"></div>
+
+        <!-- Error Message -->
+        <div id="error-message" class="error-message mb-4 hidden">
+          <svg class="w-4 h-4 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <span id="error-text"></span>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="space-y-4" autocomplete="off">
+          <!-- Email -->
+          <div>
+            <label for="email" class="block text-sm font-semibold text-gdg-text mb-1.5">Email Address</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gdg-text-secondary pointer-events-none">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </span>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="you@gmail.com"
+                class="input-field pl-11"
+              >
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label for="password" class="block text-sm font-semibold text-gdg-text mb-1.5">Password</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gdg-text-secondary pointer-events-none">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              </span>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                placeholder="Enter your password"
+                class="input-field pl-11"
+              >
+              <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gdg-text-secondary hover:text-gdg-dark transition-colors">
+                <svg id="eye-icon" class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <svg id="eye-off-icon" class="w-4.5 h-4.5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-2">
+            <button type="submit" id="login-btn" class="btn-primary w-full py-3.5 text-base rounded-xl">
+              <span id="login-btn-text">Access Certificate</span>
+              <span id="login-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Footer -->
+        <div class="mt-6 pt-5 border-t border-gdg-border/50 text-center">
+          <p class="text-xs text-gdg-text-secondary">
+            Credentials were shared via email by the organizing team.
+            <br>Contact <a href="mailto:gdg@iimtindia.net" class="text-gdg-blue hover:underline font-medium">gdg@iimtindia.net</a> for support.
+          </p>
+        </div>
+      </div>
+
+      <!-- Bottom Badge -->
+      <div class="text-center mt-6">
+        <p class="text-white/30 text-xs font-medium">
+          Powered by <span class="text-white/50">Google Developer Groups</span> on Campus
+        </p>
+      </div>
+    </div>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <!-- DASHBOARD VIEW                              -->
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <div id="dashboard-view" class="w-full max-w-2xl hidden">
+
+      <!-- Dashboard Header -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div class="gdg-dots mb-3">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <h1 class="font-display text-2xl sm:text-3xl font-bold text-white">
+            Hello, <span id="user-name" class="bg-gradient-to-r from-gdg-blue via-gdg-green to-gdg-yellow bg-clip-text text-transparent"></span>! 🎉
+          </h1>
+          <p class="text-white/50 text-sm mt-1">Your achievement is ready to download</p>
+        </div>
+        <button id="logout-btn" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium hover:bg-white/10 hover:text-white/80 transition-all duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </button>
+      </div>
+
+      <!-- Certificate Card -->
+      <div class="glass-card rounded-2xl overflow-hidden shadow-2xl">
+        <!-- Card Top Bar -->
+        <div class="gdg-divider"></div>
+
+        <div class="p-6 sm:p-8">
+          <!-- Event Badge -->
+          <div class="flex flex-wrap items-center gap-3 mb-6">
+            <span class="event-badge">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span id="event-badge-text">DevHack 2026</span>
+            </span>
+            <span class="success-badge">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              Verified
+            </span>
+          </div>
+
+          <!-- Certificate Image -->
+          <div class="certificate-frame mb-6">
+            <img
+              id="certificate-img"
+              src=""
+              alt="Certificate"
+              class="w-full"
+              loading="lazy"
+            >
+          </div>
+
+          <!-- Loading Skeleton (shown while image loads) -->
+          <div id="cert-skeleton" class="skeleton w-full h-64 mb-6 hidden"></div>
+
+          <!-- Download Section -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <button id="download-btn" class="btn-success flex-1 py-3.5 text-base rounded-xl">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span id="download-btn-text">Download Certificate</span>
+            </button>
+            <button id="share-btn" class="btn-secondary py-3.5 px-6 rounded-xl" data-tooltip="Copy link">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              Share
+            </button>
+          </div>
+        </div>
+
+        <!-- Card Footer -->
+        <div class="bg-gdg-surface/50 px-6 sm:px-8 py-4 border-t border-gdg-border/30">
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gdg-text-secondary">
+              Issued by <span class="font-semibold text-gdg-text">GDG on Campus IIMT Meerut</span>
+            </p>
+            <div class="gdg-dots">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Note -->
+      <div class="text-center mt-6">
+        <p class="text-white/30 text-xs">
+          © 2026 Google Developer Groups on Campus IIMT • All rights reserved
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Confetti Container -->
+  <div id="confetti-container"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Scripts (ES Modules)                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <script type="module" src="js/participant.js"></script>
+
+</body>
+</html>

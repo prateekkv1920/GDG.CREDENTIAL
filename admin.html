@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — DevHack 2026 | GDG on Campus IIMT</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            'display': ['Space Grotesk', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            'gdg-blue': '#4285F4',
+            'gdg-red': '#EA4335',
+            'gdg-yellow': '#FBBC05',
+            'gdg-green': '#34A853',
+            'gdg-dark': '#202124',
+            'gdg-surface': '#F8F9FA',
+            'gdg-text': '#3C4043',
+            'gdg-text-secondary': '#5F6368',
+            'gdg-border': '#DADCE0',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="font-sans admin-dark min-h-screen">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Subtle Background Pattern                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="fixed inset-0 pointer-events-none z-0">
+    <div class="absolute inset-0" style="background: radial-gradient(ellipse at 30% 20%, rgba(66,133,244,0.06) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(52,168,83,0.04) 0%, transparent 50%);"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- AUTH GATE                                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="auth-gate" class="relative z-10 min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm animate-fade-in-up">
+      <!-- Branding -->
+      <div class="text-center mb-8">
+        <div class="gdg-dots justify-center mb-4">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <h1 class="font-display text-2xl font-bold text-white mb-1">Admin Access</h1>
+        <p class="text-white/40 text-sm">DevHack 2026 — Certificate Manager</p>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="glass-card-dark rounded-2xl p-7">
+        <div class="flex items-center justify-center mb-5">
+          <div class="w-12 h-12 rounded-xl bg-gdg-blue/10 border border-gdg-blue/20 flex items-center justify-center">
+            <svg class="w-6 h-6 text-gdg-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+        </div>
+
+        <!-- Auth Error -->
+        <div id="auth-error" class="error-message error-message-dark mb-4 hidden">
+          <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span id="auth-error-text"></span>
+        </div>
+
+        <form id="auth-form" autocomplete="off">
+          <div class="mb-4">
+            <label for="passphrase" class="block text-sm font-semibold text-white/70 mb-1.5">Admin Passphrase</label>
+            <input
+              type="password"
+              id="passphrase"
+              name="passphrase"
+              required
+              placeholder="Enter admin passphrase"
+              class="input-field input-field-dark w-full"
+            >
+          </div>
+          <button type="submit" class="btn-primary w-full py-3 rounded-xl">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+            Authenticate
+          </button>
+        </form>
+
+        <p class="text-center text-white/20 text-xs mt-4">
+          Contact the project lead for access credentials
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ADMIN PANEL                                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="admin-panel" class="relative z-10 hidden">
+
+    <!-- Top Navigation -->
+    <nav class="border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="gdg-dots">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div>
+            <h1 class="font-display text-base font-bold text-white">DevHack 2026</h1>
+            <p class="text-white/30 text-xs">Certificate Admin</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gdg-green/10 border border-gdg-green/20 text-gdg-green text-xs font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-gdg-green animate-pulse"></span>
+            Admin Session Active
+          </span>
+          <button id="admin-logout" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs font-medium hover:bg-white/10 hover:text-white/70 transition-all">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+      <!-- Page Header -->
+      <div class="mb-8">
+        <h2 class="font-display text-2xl sm:text-3xl font-bold text-white mb-2">Upload Certificates</h2>
+        <p class="text-white/40 text-sm max-w-xl">
+          Upload a CSV file with participant details and their corresponding certificate images.
+          The system will process, match, and store everything in Firebase.
+        </p>
+      </div>
+
+      <!-- Upload Form Card -->
+      <div class="glass-card-dark rounded-2xl overflow-hidden">
+        <div class="gdg-divider"></div>
+
+        <form id="upload-form" class="p-6 sm:p-8 space-y-6">
+
+          <!-- Event Name -->
+          <div>
+            <label for="event-name" class="block text-sm font-semibold text-white/70 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gdg-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                Event Name
+              </span>
+            </label>
+            <input
+              type="text"
+              id="event-name"
+              value="DevHack 2026"
+              required
+              class="input-field input-field-dark w-full sm:w-96"
+              placeholder="e.g., DevHack 2026"
+            >
+          </div>
+
+          <!-- CSV Upload -->
+          <div>
+            <label class="block text-sm font-semibold text-white/70 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gdg-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                CSV File
+                <span class="text-white/30 font-normal">(name, gmail, password, certificate_filename)</span>
+              </span>
+            </label>
+            <label for="csv-file" class="upload-zone block cursor-pointer">
+              <input type="file" id="csv-file" accept=".csv" class="hidden" required>
+              <div class="flex flex-col items-center gap-2 py-3">
+                <svg class="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <p class="text-white/40 text-sm">Click to select CSV file</p>
+                <p id="csv-file-name" class="text-white/60 text-xs font-medium">No file chosen</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Certificate Images Upload -->
+          <div>
+            <label class="block text-sm font-semibold text-white/70 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gdg-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Certificate Images / Folder
+                <span class="text-white/30 font-normal">(Folder or individual PNG, JPG, JPEG, WebP files)</span>
+              </span>
+            </label>
+
+            <!-- Hidden Inputs for Files and Folder -->
+            <input type="file" id="cert-images" accept=".png,.jpg,.jpeg,.webp" multiple class="hidden">
+            <input type="file" id="cert-folder" webkitdirectory directory multiple class="hidden">
+
+            <div id="cert-dropzone" class="upload-zone p-6 text-center transition-all duration-200">
+              <div class="flex flex-col items-center gap-3">
+                <div class="flex items-center justify-center w-12 h-12 rounded-full bg-white/5 border border-white/10 text-gdg-green">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </div>
+                <div>
+                  <p class="text-white/80 font-medium text-sm">Drag & drop your certificates folder or files here</p>
+                  <p class="text-white/40 text-xs mt-0.5">Supports entire folder upload or multi-file selection</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center justify-center gap-2.5 mt-1">
+                  <button type="button" id="btn-select-folder" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gdg-green/15 text-gdg-green border border-gdg-green/30 text-xs font-semibold hover:bg-gdg-green/25 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    📁 Select Entire Folder
+                  </button>
+                  <button type="button" id="btn-select-files" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/10 text-white/80 border border-white/15 text-xs font-semibold hover:bg-white/15 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    🖼️ Select Image Files
+                  </button>
+                </div>
+
+                <div id="images-file-name" class="text-white/40 text-xs font-medium mt-1">No folder or files chosen</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="border-t border-white/5"></div>
+
+          <!-- Submit -->
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="submit" id="upload-btn" class="btn-primary py-3.5 px-8 rounded-xl text-base">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span id="upload-btn-text">Upload &amp; Process</span>
+              <span id="upload-spinner" class="spinner hidden"></span>
+            </button>
+            <button type="button" id="btn-quick-sample" class="inline-flex items-center gap-2 py-3.5 px-5 rounded-xl bg-gdg-yellow/15 text-gdg-yellow border border-gdg-yellow/30 font-medium text-sm hover:bg-gdg-yellow/25 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <span>⚡ One-Click Test Sample Upload</span>
+            </button>
+            <button type="reset" id="reset-btn" class="btn-secondary py-3.5 px-6 rounded-xl text-white/40 border-white/10 hover:bg-white/5 hover:text-white/60">
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ── Progress Section ── -->
+      <div id="progress-section" class="glass-card-dark rounded-2xl mt-6 overflow-hidden hidden">
+        <div class="p-6 sm:p-8">
+          <!-- Progress Header -->
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-gdg-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              Processing Log
+            </h3>
+            <span id="progress-text" class="text-white/40 text-sm font-mono">0 / 0</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="progress-bar-track mb-5">
+            <div id="progress-bar" class="progress-bar-fill" style="width: 0%"></div>
+          </div>
+
+          <!-- Status Log -->
+          <div id="status-log" class="status-log space-y-1.5 font-mono text-sm"></div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="text-center mt-8 pb-8">
+        <p class="text-white/20 text-xs">
+          DevHack 2026 Admin Panel — GDG on Campus IIMT Meerut
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Scripts (ES Modules)                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <script type="module" src="js/admin.js"></script>
+
+</body>
+</html>
