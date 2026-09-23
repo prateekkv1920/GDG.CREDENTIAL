@@ -9,26 +9,23 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Supabase Project URL for project "anrgvpowpwncyneqxlcm"
+// Supabase Project URL
 export const SUPABASE_URL = "https://anrgvpowpwncyneqxlcm.supabase.co";
 
-// ⬇️ Paste your Supabase `anon` / `public` API key below ⬇️
-// Found in: Supabase Dashboard → Project Settings (Gear Icon) → API → Project API Keys → `anon` `public`
-export const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+// Supabase Publishable / Anon API Key
+export const SUPABASE_ANON_KEY = "sb_publishable_SLyd0_gva4JPX8FJdP2fBA_wQPN0aaS";
 
-export const isSupabaseConfigured = !SUPABASE_ANON_KEY.startsWith("YOUR_");
+export const isSupabaseConfigured = SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith("YOUR_");
 
 let supabase = null;
 
 if (isSupabaseConfigured) {
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("✅ Supabase initialized successfully");
+    console.log("✅ Supabase initialized successfully for project: anrgvpowpwncyneqxlcm");
   } catch (err) {
     console.error("❌ Supabase init error:", err);
   }
-} else {
-  console.warn("⚠️ Supabase anon key not set in js/supabase-config.js");
 }
 
 export { supabase };

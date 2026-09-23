@@ -607,9 +607,9 @@ if (btnQuickSample) {
 
     try {
       const [csvResp, img1Resp, img2Resp] = await Promise.all([
-        fetch('/sample-data/test.csv'),
-        fetch('/sample-data/1.png'),
-        fetch('/sample-data/2.png')
+        fetch('sample-data/test.csv'),
+        fetch('sample-data/1.png'),
+        fetch('sample-data/2.png')
       ]);
 
       const csvText = await csvResp.text();
