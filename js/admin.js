@@ -1,34 +1,20 @@
 /**
  * ============================================================
- * DevHack 2026 — Admin Panel Logic
+ * DevHack 2026 — Admin Panel Logic (100% Supabase Cloud)
  * ============================================================
- * Handles: Passphrase authentication, CSV parsing,
- *          Folder / multi-image upload & Drag-and-Drop,
- *          Supabase Storage & PostgreSQL Database writes,
- *          Firebase Storage/Firestore upload fallback,
- *          Local IndexedDB fallback for instant offline testing
+ * Exclusively connects to Supabase Cloud:
+ * 1. Authenticates admin with SHA-256 passphrase.
+ * 2. Parses participant CSV.
+ * 3. Matches and processes certificate image files.
+ * 4. Permanently writes participant records and certificate data into Supabase PostgreSQL & Storage.
  * ============================================================
  */
 
 import { supabase, isSupabaseConfigured, SUPABASE_URL } from './supabase-config.js';
-import { db, storage, isConfigured as isFirebaseConfigured } from './firebase-config.js';
-import {
-  collection,
-  doc,
-  setDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 import { parseCSV, validateCSVData } from './csv-parser.js';
-import { saveParticipantLocal, fileToDataURL } from './storage-adapter.js';
 
 // ============================================================
 // 🔒 ADMIN PASSPHRASE HASH (SHA-256)
-// The plaintext password is never stored in the repository.
 // ============================================================
 const ADMIN_PASSPHRASE_HASH = 'c34b8d4bd56761f623b0dd6b1adc0c3919f10d6ed75383f0c1bb3c79d7ae3919';
 
@@ -140,7 +126,7 @@ const supabaseStatusText = document.getElementById('supabase-status-text');
 const supabaseSetupAlert = document.getElementById('supabase-setup-alert');
 const btnCopySql = document.getElementById('btn-copy-sql');
 
-const SQL_SETUP_CODE = `-- 1. Create the certificates table
+const SQL_SETUP_CODE = `-- 1. Create the certificates table in Supabase
 CREATE TABLE IF NOT EXISTS certificates (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL,
@@ -155,39 +141,13 @@ CREATE TABLE IF NOT EXISTS certificates (
 -- 2. Enable Row Level Security (RLS) on certificates table
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 
--- 3. Allow public reading of certificates table
+-- 3. Allow public reading of certificates
 DROP POLICY IF EXISTS "Allow public read" ON certificates;
 CREATE POLICY "Allow public read" ON certificates FOR SELECT TO anon USING (true);
 
--- 4. Allow public insert / upsert from admin
+-- 4. Allow public inserting and updating
 DROP POLICY IF EXISTS "Allow public insert" ON certificates;
 CREATE POLICY "Allow public insert" ON certificates FOR ALL TO anon USING (true);
-
--- 5. Create the storage bucket if not exists & make it public
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('certificates', 'certificates', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
-
--- 6. Enable public uploads to the certificates storage bucket
-DROP POLICY IF EXISTS "Allow public storage upload" ON storage.objects;
-CREATE POLICY "Allow public storage upload"
-ON storage.objects FOR INSERT
-TO anon
-WITH CHECK (bucket_id = 'certificates');
-
--- 7. Enable public updates/upserts to storage
-DROP POLICY IF EXISTS "Allow public storage update" ON storage.objects;
-CREATE POLICY "Allow public storage update"
-ON storage.objects FOR UPDATE
-TO anon
-USING (bucket_id = 'certificates');
-
--- 8. Enable public reading of storage objects
-DROP POLICY IF EXISTS "Allow public storage select" ON storage.objects;
-CREATE POLICY "Allow public storage select"
-ON storage.objects FOR SELECT
-TO anon
-USING (bucket_id = 'certificates');
 `;
 
 if (btnCopySql) {
@@ -219,12 +179,12 @@ async function checkSupabaseHealth() {
         if (supabaseSetupAlert) supabaseSetupAlert.classList.add('hidden');
       }
     } catch (err) {
-      supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
-      supabaseStatusText.textContent = 'Supabase Offline';
+      supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+      supabaseStatusText.textContent = 'Supabase Connection Error';
     }
   } else {
-    supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
-    supabaseStatusText.textContent = 'Local IndexedDB Mode';
+    supabaseStatusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+    supabaseStatusText.textContent = 'Supabase Not Configured';
   }
 }
 
@@ -459,7 +419,7 @@ function clearLog() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Upload & Process Handler
+// Upload & Process Handler — 100% Supabase
 // ══════════════════════════════════════════════════════════════
 
 uploadForm.addEventListener('submit', async (e) => {
@@ -487,7 +447,12 @@ uploadForm.addEventListener('submit', async (e) => {
   }
 
   if (imageFiles.length === 0) {
-    alert('Please select or drop a certificate images folder/files.');
+    alert('Please select or drop certificate images folder/files.');
+    return;
+  }
+
+  if (!isSupabaseConfigured || !supabase) {
+    alert('Supabase is not configured. Please check connection.');
     return;
   }
 
@@ -497,24 +462,14 @@ uploadForm.addEventListener('submit', async (e) => {
   clearLog();
 
   uploadBtn.disabled = true;
-  uploadBtnText.textContent = 'Processing...';
+  uploadBtnText.textContent = 'Uploading to Supabase...';
   uploadSpinner.classList.remove('hidden');
 
   const startTime = performance.now();
 
   try {
-    const isSupabaseActive = isSupabaseConfigured && supabase;
-    const isFirebaseActive = isFirebaseConfigured && db && storage;
-
-    if (isSupabaseActive) {
-      addLog(`⚡ <strong>Connected to Supabase:</strong> ${SUPABASE_URL}`, 'success');
-      addLog('Uploading certificates to Supabase Storage and storing in PostgreSQL...', 'info');
-    } else if (isFirebaseActive) {
-      addLog('🔥 <strong>Connected to Firebase</strong> (Firestore & Storage).', 'success');
-    } else {
-      addLog('⚡ <strong>Running in Local Storage Mode (IndexedDB)</strong> for instant testing.', 'warning');
-      addLog('Participant certificates will be stored locally in your browser.', 'info');
-    }
+    addLog(`⚡ <strong>Connected to Supabase:</strong> ${SUPABASE_URL}`, 'success');
+    addLog('Uploading participant credentials and certificates directly into Supabase Cloud...', 'info');
 
     // ── Step 1: Parse CSV ──
     addLog('Reading CSV file...', 'info');
@@ -542,9 +497,9 @@ uploadForm.addEventListener('submit', async (e) => {
     }
     addLog(`Indexed <strong>${Object.keys(imageMap).length}</strong> certificate image(s).`, 'success');
 
-    // ── Step 4: Process Each Row ──
+    // ── Step 4: Process Each Row directly into Supabase ──
     addLog('', 'divider');
-    addLog(`Starting upload pipeline for <strong>${csvData.length}</strong> record(s)...`, 'info');
+    addLog(`Starting Supabase upload pipeline for <strong>${csvData.length}</strong> record(s)...`, 'info');
     addLog('', 'divider');
 
     let successCount = 0;
@@ -590,88 +545,47 @@ uploadForm.addEventListener('submit', async (e) => {
       }
 
       try {
-        let downloadURL = '';
         const effectiveCertName = imageFile.name.split('/').pop().split('\\').pop();
         const passwordHash = await hashPassword(password);
+        const storagePath = `${eventName}/${effectiveCertName}`;
 
-        if (isSupabaseActive) {
-          // ── Supabase Upload ──
-          const storagePath = `${eventName}/${effectiveCertName}`;
-          addLog(`Row ${rowNum} (${name}): Processing certificate image...`, 'info');
+        // Convert image to direct Base64 Data URL
+        let downloadURL = await fileToDataURL(imageFile);
 
-          // Convert image to direct data URL as guaranteed fail-safe
-          const base64Data = await fileToDataURL(imageFile);
-          downloadURL = base64Data;
-
-          try {
-            const { data: uploadData, error: uploadErr } = await supabase.storage
-              .from('certificates')
-              .upload(storagePath, imageFile, { upsert: true });
-
-            if (!uploadErr) {
-              const { data: urlData } = supabase.storage
-                .from('certificates')
-                .getPublicUrl(storagePath);
-
-              if (urlData && urlData.publicUrl) {
-                downloadURL = urlData.publicUrl;
-              }
-            } else {
-              console.warn('Supabase storage upload notice, using direct high-res image data in PostgreSQL:', uploadErr.message);
-            }
-          } catch (storageException) {
-            console.warn('Storage fallback to direct image data:', storageException);
-          }
-
-          // Insert / Upsert in Supabase Table
-          const { error: dbErr } = await supabase
+        // Optional Supabase Storage attempt
+        try {
+          const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('certificates')
-            .upsert({
-              name: name,
-              email: email,
-              password_hash: passwordHash,
-              certificate_url: downloadURL,
-              certificate_filename: effectiveCertName,
-              event_name: eventName
-            }, { onConflict: 'email' });
+            .upload(storagePath, imageFile, { upsert: true });
 
-          if (dbErr) throw dbErr;
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage
+              .from('certificates')
+              .getPublicUrl(storagePath);
 
-          addLog(`Row ${rowNum} (${name}): Certificate saved permanently in Supabase for <strong>${email}</strong>.`, 'success');
-
-        } else if (isFirebaseActive) {
-          // ── Firebase Upload ──
-          const storagePath = `certificates/${eventName}/${effectiveCertName}`;
-          const storageRef = ref(storage, storagePath);
-          await uploadBytes(storageRef, imageFile);
-          downloadURL = await getDownloadURL(storageRef);
-
-          const docRef = doc(db, 'certificates', email);
-          await setDoc(docRef, {
-            name, email, passwordHash,
-            certificateUrl: downloadURL,
-            certificateFilename: effectiveCertName,
-            eventName,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-
-          addLog(`Row ${rowNum} (${name}): Firestore document created for <strong>${email}</strong>.`, 'success');
-
-        } else {
-          // ── Local Storage (IndexedDB) ──
-          const dataUrl = await fileToDataURL(imageFile);
-          await saveParticipantLocal({
-            name, email, passwordHash,
-            certificateUrl: dataUrl,
-            certificateFilename: effectiveCertName,
-            eventName,
-            createdAt: new Date().toISOString()
-          });
-
-          addLog(`Row ${rowNum} (${name}): Saved locally with password hash.`, 'success');
+            if (urlData && urlData.publicUrl) {
+              downloadURL = urlData.publicUrl;
+            }
+          }
+        } catch (e) {
+          // Keep Base64 dataURL
         }
 
+        // Insert / Upsert into Supabase Table 'certificates'
+        const { error: dbErr } = await supabase
+          .from('certificates')
+          .upsert({
+            name: name,
+            email: email,
+            password_hash: passwordHash,
+            certificate_url: downloadURL,
+            certificate_filename: effectiveCertName,
+            event_name: eventName
+          }, { onConflict: 'email' });
+
+        if (dbErr) throw dbErr;
+
+        addLog(`Row ${rowNum} (${name}): Saved permanently in Supabase for <strong>${email}</strong>.`, 'success');
         successCount++;
       } catch (rowError) {
         console.error(`Error processing row ${rowNum}:`, rowError);
@@ -685,8 +599,8 @@ uploadForm.addEventListener('submit', async (e) => {
     // ── Step 5: Summary ──
     const duration = ((performance.now() - startTime) / 1000).toFixed(1);
     addLog('', 'divider');
-    addLog(`🎉 <strong>Pipeline Completed in ${duration}s</strong>`, 'success');
-    addLog(`&nbsp;&nbsp;• <strong>${successCount}</strong> certificate(s) processed successfully`, 'success');
+    addLog(`🎉 <strong>Upload to Supabase Completed in ${duration}s</strong>`, 'success');
+    addLog(`&nbsp;&nbsp;• <strong>${successCount}</strong> certificate(s) stored in Supabase`, 'success');
     if (skipCount > 0) addLog(`&nbsp;&nbsp;• <strong>${skipCount}</strong> skipped`, 'warning');
     if (errorCount > 0) addLog(`&nbsp;&nbsp;• <strong>${errorCount}</strong> failed`, 'error');
 
@@ -695,7 +609,7 @@ uploadForm.addEventListener('submit', async (e) => {
     }
 
   } catch (error) {
-    console.error('Upload pipeline failed:', error);
+    console.error('Supabase upload pipeline failed:', error);
     addLog(`Pipeline Aborted: ${error.message}`, 'error');
   } finally {
     uploadBtn.disabled = false;

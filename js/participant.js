@@ -1,22 +1,13 @@
 /**
  * ============================================================
- * DevHack 2026 — Participant Portal Logic
+ * DevHack 2026 — Participant Portal Logic (100% Supabase)
  * ============================================================
- * Handles: Login, Supabase / Firestore / Local DB query,
- *          SHA-256 password verification, certificate display,
- *          blob-based download, Web Share, confetti effect
+ * Fetches participant records and certificates exclusively from Supabase Cloud.
+ * Verifies SHA-256 password hashes, renders certificates, and enables direct downloads.
  * ============================================================
  */
 
 import { supabase, isSupabaseConfigured } from './supabase-config.js';
-import { db, isConfigured as isFirebaseConfigured } from './firebase-config.js';
-import {
-  collection,
-  query,
-  where,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getParticipantByEmailLocal } from './storage-adapter.js';
 
 // ── SHA-256 Password Hashing (Web Crypto API) ──
 async function hashPassword(password) {
@@ -90,7 +81,7 @@ function hideError() {
 function setLoading(loading) {
   loginBtn.disabled = loading;
   if (loading) {
-    loginBtnText.textContent = 'Verifying...';
+    loginBtnText.textContent = 'Verifying with Supabase...';
     loginSpinner.classList.remove('hidden');
   } else {
     loginBtnText.textContent = 'Access Certificate';
@@ -119,7 +110,7 @@ function showDashboard(user) {
   certificateImg.onerror = () => {
     certSkeleton.classList.add('hidden');
     certificateImg.classList.remove('hidden');
-    certificateImg.alt = 'Failed to load certificate image';
+    certificateImg.alt = 'Certificate image could not be loaded from Supabase.';
   };
 
   certificateImg.src = user.certificateUrl;
@@ -223,7 +214,7 @@ async function handleDownload() {
       a.click();
       document.body.removeChild(a);
     } else {
-      // Supabase / Remote URL
+      // Supabase Storage CDN URL download
       const response = await fetch(currentUser.certificateUrl, { mode: 'cors' });
       if (!response.ok) throw new Error('Remote image fetch failed');
 
@@ -240,7 +231,7 @@ async function handleDownload() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
     }
   } catch (error) {
-    console.warn('Direct fetch failed, falling back to window open/download:', error);
+    console.warn('Direct fetch fallback to link click:', error);
     const a = document.createElement('a');
     a.href = currentUser.certificateUrl;
     a.target = '_blank';
@@ -279,10 +270,11 @@ async function handleShare() {
 
 function copyShareLink() {
   navigator.clipboard.writeText(window.location.href).then(() => {
-    const origText = shareBtn.querySelector('span').textContent;
-    shareBtn.querySelector('span').textContent = 'Link Copied!';
+    const span = shareBtn.querySelector('span');
+    const origText = span ? span.textContent : 'Share';
+    if (span) span.textContent = 'Link Copied!';
     setTimeout(() => {
-      shareBtn.querySelector('span').textContent = origText;
+      if (span) span.textContent = origText;
     }, 2000);
   }).catch(() => {
     alert('Certificate portal URL: ' + window.location.href);
@@ -290,7 +282,7 @@ function copyShareLink() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Login Form Submission
+// Login Form Submission — Exclusively Supabase
 // ══════════════════════════════════════════════════════════════
 
 loginForm.addEventListener('submit', async (e) => {
@@ -311,71 +303,58 @@ loginForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  if (!isSupabaseConfigured || !supabase) {
+    showError('Supabase is not configured. Please check connection.');
+    return;
+  }
+
   setLoading(true);
 
   try {
     const inputHash = await hashPassword(password);
-    let userData = null;
 
-    // 1. Check Supabase (Primary Cloud Database)
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('certificates')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
+    // Fetch directly and exclusively from Supabase Cloud Table 'certificates'
+    const { data, error } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-      if (data) {
-        userData = {
-          name: data.name,
-          email: data.email,
-          passwordHash: data.password_hash,
-          certificateUrl: data.certificate_url,
-          certificateFilename: data.certificate_filename,
-          eventName: data.event_name
-        };
-      }
+    if (error) {
+      console.error('Supabase query error:', error);
+      showError('Database connection error. Please try again.');
+      setLoading(false);
+      return;
     }
 
-    // 2. Check Firebase if configured
-    if (!userData && isFirebaseConfigured && db) {
-      const q = query(
-        collection(db, 'certificates'),
-        where('email', '==', email)
-      );
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        userData = querySnapshot.docs[0].data();
-      }
-    }
-
-    // 3. Check Local IndexedDB (fallback / offline test)
-    if (!userData) {
-      const localData = await getParticipantByEmailLocal(email);
-      if (localData) {
-        userData = localData;
-      }
-    }
-
-    // Verification
-    if (!userData) {
+    if (!data) {
       showError('No certificate found for this email address. Please verify your email or contact the event organizers.');
       setLoading(false);
       return;
     }
 
-    if (userData.passwordHash !== inputHash) {
+    // Verify Password Hash
+    if (data.password_hash !== inputHash) {
       showError('Incorrect password. Please check your credentials and try again.');
       setLoading(false);
       return;
     }
+
+    const userData = {
+      name: data.name,
+      email: data.email,
+      passwordHash: data.password_hash,
+      certificateUrl: data.certificate_url,
+      certificateFilename: data.certificate_filename,
+      eventName: data.event_name
+    };
 
     // Success — Show Certificate Dashboard
     showDashboard(userData);
 
   } catch (error) {
     console.error('Login error:', error);
-    showError('An error occurred while accessing your certificate. Please try again.');
+    showError('An error occurred while accessing your certificate from Supabase. Please try again.');
   } finally {
     setLoading(false);
   }
