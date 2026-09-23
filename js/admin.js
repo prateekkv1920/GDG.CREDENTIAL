@@ -27,9 +27,10 @@ import { parseCSV, validateCSVData } from './csv-parser.js';
 import { saveParticipantLocal, fileToDataURL } from './storage-adapter.js';
 
 // ============================================================
-// 🔑 ADMIN PASSPHRASE
+// 🔒 ADMIN PASSPHRASE HASH (SHA-256)
+// The plaintext password is never stored in the repository.
 // ============================================================
-const ADMIN_PASSPHRASE = 'PRATEEK@21231538';
+const ADMIN_PASSPHRASE_HASH = 'c34b8d4bd56761f623b0dd6b1adc0c3919f10d6ed75383f0c1bb3c79d7ae3919';
 
 // ── SHA-256 Password Hashing (Web Crypto API) ──
 async function hashPassword(password) {
@@ -90,12 +91,13 @@ if (sessionStorage.getItem('devhack_admin_auth') === 'true') {
   adminPanel.classList.remove('hidden');
 }
 
-authForm.addEventListener('submit', (e) => {
+authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const passphrase = passphraseInput.value.trim();
+  const inputHash = await hashPassword(passphrase);
 
-  if (passphrase === ADMIN_PASSPHRASE) {
+  if (inputHash === ADMIN_PASSPHRASE_HASH) {
     sessionStorage.setItem('devhack_admin_auth', 'true');
     authError.classList.add('hidden');
 
