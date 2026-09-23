@@ -66,9 +66,13 @@ const progressText = document.getElementById('progress-text');
 const statusLog = document.getElementById('status-log');
 
 const skipExistingCheckbox = document.getElementById('skip-existing');
+const retrySection = document.getElementById('retry-section');
+const retryCountEl = document.getElementById('retry-count');
+const btnRetryFailed = document.getElementById('btn-retry-failed');
 
-// State: Store collected certificate image files
+// State: Store collected certificate image files and failed items for retry
 let selectedImageFiles = [];
+let lastFailedItems = [];
 
 // ══════════════════════════════════════════════════════════════
 // Auth Gate Logic
@@ -624,10 +628,6 @@ uploadForm.addEventListener('submit', async (e) => {
             certificate_filename: effectiveCertName,
             event_name: eventName
           }, { onConflict: 'email' });
-            certificate_url: downloadURL,
-            certificate_filename: effectiveCertName,
-            event_name: eventName
-          }, { onConflict: 'email' });
 
         if (dbErr) throw dbErr;
 
@@ -637,6 +637,19 @@ uploadForm.addEventListener('submit', async (e) => {
         console.error(`Error processing row ${rowNum}:`, rowError);
         addLog(`Row ${rowNum} (${name}): Failed — ${rowError.message}`, 'error');
         errorCount++;
+
+        // Store for 1-click in-session retry
+        const effectiveCertName = imageFile.name.split('/').pop().split('\\').pop();
+        lastFailedItems.push({
+          row,
+          rowNum,
+          name,
+          email,
+          password,
+          imageFile,
+          effectiveCertName,
+          eventName
+        });
       }
 
       updateProgress(i + 1, csvData.length);
@@ -649,6 +662,14 @@ uploadForm.addEventListener('submit', async (e) => {
     addLog(`&nbsp;&nbsp;• <strong>${successCount}</strong> certificate(s) stored in Supabase`, 'success');
     if (skipCount > 0) addLog(`&nbsp;&nbsp;• <strong>${skipCount}</strong> skipped`, 'warning');
     if (errorCount > 0) addLog(`&nbsp;&nbsp;• <strong>${errorCount}</strong> failed`, 'error');
+
+    // Show Retry Button if any failed
+    if (lastFailedItems.length > 0 && retrySection && retryCountEl) {
+      retryCountEl.textContent = lastFailedItems.length;
+      retrySection.classList.remove('hidden');
+    } else if (retrySection) {
+      retrySection.classList.add('hidden');
+    }
 
     if (successCount > 0) {
       addLog(`<div class="mt-2 flex items-center gap-2"><a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gdg-blue text-white rounded-lg font-medium hover:bg-blue-600 transition text-xs shadow-lg shadow-blue-500/20">🚀 Open Participant Portal to Test Login →</a></div>`, 'info');
@@ -671,8 +692,80 @@ uploadForm.addEventListener('submit', async (e) => {
 resetBtn.addEventListener('click', () => {
   uploadForm.reset();
   selectedImageFiles = [];
+  lastFailedItems = [];
   csvFileName.innerHTML = '';
   imagesFileName.innerHTML = 'No folder or files chosen';
   progressSection.classList.add('hidden');
+  if (retrySection) retrySection.classList.add('hidden');
   clearLog();
 });
+
+// ══════════════════════════════════════════════════════════════
+// 1-Click Retry Failed Records Handler
+// ══════════════════════════════════════════════════════════════
+
+if (btnRetryFailed) {
+  btnRetryFailed.addEventListener('click', async () => {
+    if (lastFailedItems.length === 0) return;
+
+    btnRetryFailed.disabled = true;
+    btnRetryFailed.innerHTML = `
+      <span class="spinner inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+      Retrying ${lastFailedItems.length} failed record(s)...
+    `;
+
+    addLog('', 'divider');
+    addLog(`🔄 <strong>Retrying ${lastFailedItems.length} failed record(s) directly from memory...</strong>`, 'info');
+    addLog('', 'divider');
+
+    const itemsToRetry = [...lastFailedItems];
+    lastFailedItems = [];
+    let retrySuccess = 0;
+    let retryFail = 0;
+
+    for (let i = 0; i < itemsToRetry.length; i++) {
+      const item = itemsToRetry[i];
+      try {
+        const passwordHash = await hashPassword(item.password);
+        const downloadURL = await compressCertificateImage(item.imageFile);
+
+        const { error: dbErr } = await supabase
+          .from('certificates')
+          .upsert({
+            name: item.name,
+            email: item.email,
+            password_hash: passwordHash,
+            certificate_url: downloadURL,
+            certificate_filename: item.effectiveCertName,
+            event_name: item.eventName
+          }, { onConflict: 'email' });
+
+        if (dbErr) throw dbErr;
+
+        addLog(`Row ${item.rowNum} (${item.name}): Successfully stored in Supabase for <strong>${item.email}</strong>.`, 'success');
+        retrySuccess++;
+      } catch (err) {
+        console.error('Retry error:', err);
+        addLog(`Row ${item.rowNum} (${item.name}): Retry failed — ${err.message}`, 'error');
+        lastFailedItems.push(item);
+        retryFail++;
+      }
+    }
+
+    addLog('', 'divider');
+    addLog(`🎉 <strong>Retry Completed: ${retrySuccess} succeeded, ${retryFail} failed.</strong>`, retryFail === 0 ? 'success' : 'warning');
+
+    if (lastFailedItems.length > 0 && retrySection && retryCountEl) {
+      retryCountEl.textContent = lastFailedItems.length;
+      retrySection.classList.remove('hidden');
+    } else if (retrySection) {
+      retrySection.classList.add('hidden');
+    }
+
+    btnRetryFailed.disabled = false;
+    btnRetryFailed.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      🔄 Re-run Failed Records Only (1-Click)
+    `;
+  });
+}
