@@ -2,13 +2,14 @@
  * ============================================================
  * DevHack 2026 — Participant Portal Logic
  * ============================================================
- * Handles: Login, Firestore query & Local IndexedDB query,
+ * Handles: Login, Supabase / Firestore / Local DB query,
  *          SHA-256 password verification, certificate display,
  *          blob-based download, Web Share, confetti effect
  * ============================================================
  */
 
-import { db, isConfigured } from './firebase-config.js';
+import { supabase, isSupabaseConfigured } from './supabase-config.js';
+import { db, isConfigured as isFirebaseConfigured } from './firebase-config.js';
 import {
   collection,
   query,
@@ -124,7 +125,6 @@ function showDashboard(user) {
   certificateImg.src = user.certificateUrl;
   certificateImg.alt = `${user.name}'s DevHack 2026 Certificate`;
 
-  // Transition views
   loginView.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
   loginView.style.opacity = '0';
   loginView.style.transform = 'translateY(-20px)';
@@ -137,7 +137,6 @@ function showDashboard(user) {
     dashboardView.classList.remove('hidden');
     dashboardView.classList.add('animate-fade-in-up');
 
-    // Trigger confetti celebration
     launchConfetti();
   }, 350);
 }
@@ -195,14 +194,13 @@ function launchConfetti() {
     confettiContainer.appendChild(piece);
   }
 
-  // Remove confetti after animation completes
   setTimeout(() => {
     confettiContainer.classList.add('hidden');
     confettiContainer.innerHTML = '';
   }, 5000);
 }
 
-// ── Download Handler (Blob-Based Force Download) ──
+// ── Download Handler ──
 async function handleDownload() {
   if (!currentUser || !currentUser.certificateUrl) {
     showError('No certificate available for download.');
@@ -232,7 +230,6 @@ async function handleDownload() {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
   } catch (error) {
     console.error('Download error:', error);
-    // Fallback: direct link open
     const a = document.createElement('a');
     a.href = currentUser.certificateUrl;
     a.target = '_blank';
@@ -246,7 +243,7 @@ async function handleDownload() {
   }
 }
 
-// ── Share Handler (Web Share API with Clipboard Fallback) ──
+// ── Share Handler ──
 async function handleShare() {
   if (!currentUser) return;
 
@@ -292,7 +289,6 @@ loginForm.addEventListener('submit', async (e) => {
   const email = emailInput.value.trim().toLowerCase();
   const password = passwordInput.value.trim();
 
-  // Basic validation
   if (!email || !password) {
     showError('Please fill in both email and password.');
     return;
@@ -310,22 +306,39 @@ loginForm.addEventListener('submit', async (e) => {
     const inputHash = await hashPassword(password);
     let userData = null;
 
-    // Check Firebase if configured
-    if (isConfigured && db) {
+    // 1. Check Supabase (Primary Cloud Database)
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('certificates')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (data) {
+        userData = {
+          name: data.name,
+          email: data.email,
+          passwordHash: data.password_hash,
+          certificateUrl: data.certificate_url,
+          certificateFilename: data.certificate_filename,
+          eventName: data.event_name
+        };
+      }
+    }
+
+    // 2. Check Firebase if configured
+    if (!userData && isFirebaseConfigured && db) {
       const q = query(
         collection(db, 'certificates'),
         where('email', '==', email)
       );
-
       const querySnapshot = await getDocs(q);
-
       if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        userData = userDoc.data();
+        userData = querySnapshot.docs[0].data();
       }
     }
 
-    // Check Local IndexedDB (fallback / local testing)
+    // 3. Check Local IndexedDB (fallback / offline test)
     if (!userData) {
       const localData = await getParticipantByEmailLocal(email);
       if (localData) {
@@ -346,7 +359,7 @@ loginForm.addEventListener('submit', async (e) => {
       return;
     }
 
-    // Success — Transition to Dashboard
+    // Success — Show Certificate Dashboard
     showDashboard(userData);
 
   } catch (error) {

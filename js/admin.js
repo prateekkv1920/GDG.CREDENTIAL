@@ -4,12 +4,14 @@
  * ============================================================
  * Handles: Passphrase authentication, CSV parsing,
  *          Folder / multi-image upload & Drag-and-Drop,
- *          Firebase Storage/Firestore upload with automatic Local
- *          IndexedDB fallback for testing, real-time progress tracking
+ *          Supabase Storage & PostgreSQL Database writes,
+ *          Firebase Storage/Firestore upload fallback,
+ *          Local IndexedDB fallback for instant offline testing
  * ============================================================
  */
 
-import { db, storage, isConfigured } from './firebase-config.js';
+import { supabase, isSupabaseConfigured, SUPABASE_URL } from './supabase-config.js';
+import { db, storage, isConfigured as isFirebaseConfigured } from './firebase-config.js';
 import {
   collection,
   doc,
@@ -139,7 +141,6 @@ function isImageFile(filename) {
 }
 
 function updateImagesDisplay(files, sourceLabel = '') {
-  // Filter out system files or non-images
   const filtered = Array.from(files).filter(f => isImageFile(f.name));
   selectedImageFiles = filtered;
 
@@ -164,7 +165,6 @@ function updateImagesDisplay(files, sourceLabel = '') {
   }
 }
 
-// Button click triggers
 if (btnSelectFolder && folderInput) {
   btnSelectFolder.addEventListener('click', (e) => {
     e.preventDefault();
@@ -179,11 +179,9 @@ if (btnSelectFiles && imagesInput) {
   });
 }
 
-// Folder input change
 if (folderInput) {
   folderInput.addEventListener('change', () => {
     if (folderInput.files.length > 0) {
-      // Find folder name if available
       const samplePath = folderInput.files[0].webkitRelativePath || '';
       const folderName = samplePath.split('/')[0] || 'Folder';
       updateImagesDisplay(folderInput.files, `📁 ${folderName}`);
@@ -191,7 +189,6 @@ if (folderInput) {
   });
 }
 
-// Multi-file input change
 if (imagesInput) {
   imagesInput.addEventListener('change', () => {
     if (imagesInput.files.length > 0) {
@@ -200,7 +197,6 @@ if (imagesInput) {
   });
 }
 
-// CSV input display
 csvInput.addEventListener('change', () => {
   if (csvInput.files[0]) {
     const file = csvInput.files[0];
@@ -217,7 +213,7 @@ csvInput.addEventListener('change', () => {
   }
 });
 
-// ── Drag & Drop with Recursive Directory Traversal ──
+// ── Drag & Drop Traversal ──
 if (certDropzone) {
   ['dragenter', 'dragover'].forEach(eventName => {
     certDropzone.addEventListener(eventName, (e) => {
@@ -390,7 +386,6 @@ uploadForm.addEventListener('submit', async (e) => {
   progressSection.classList.add('animate-fade-in-up');
   clearLog();
 
-  // Disable form
   uploadBtn.disabled = true;
   uploadBtnText.textContent = 'Processing...';
   uploadSpinner.classList.remove('hidden');
@@ -398,12 +393,17 @@ uploadForm.addEventListener('submit', async (e) => {
   const startTime = performance.now();
 
   try {
-    const isFirebaseActive = isConfigured && db && storage;
-    if (isFirebaseActive) {
-      addLog('🔥 Connected to Firebase (Cloud Firestore & Storage).', 'success');
+    const isSupabaseActive = isSupabaseConfigured && supabase;
+    const isFirebaseActive = isFirebaseConfigured && db && storage;
+
+    if (isSupabaseActive) {
+      addLog(`⚡ <strong>Connected to Supabase:</strong> ${SUPABASE_URL}`, 'success');
+      addLog('Uploading certificates to Supabase Storage and storing in PostgreSQL...', 'info');
+    } else if (isFirebaseActive) {
+      addLog('🔥 <strong>Connected to Firebase</strong> (Firestore & Storage).', 'success');
     } else {
-      addLog('⚡ Running in Local Storage Mode (IndexedDB) for instant local testing.', 'warning');
-      addLog('Participant certificates are processed and stored locally in your browser.', 'info');
+      addLog('⚡ <strong>Running in Local Storage Mode (IndexedDB)</strong> for instant testing.', 'warning');
+      addLog('Participant certificates will be stored locally in your browser.', 'info');
     }
 
     // ── Step 1: Parse CSV ──
@@ -427,7 +427,6 @@ uploadForm.addEventListener('submit', async (e) => {
     addLog('Indexing uploaded certificate images...', 'info');
     const imageMap = {};
     for (const file of imageFiles) {
-      // Store under basename (handling subfolder paths if any)
       const baseName = file.name.split('/').pop().split('\\').pop().toLowerCase().trim();
       imageMap[baseName] = file;
     }
@@ -450,11 +449,7 @@ uploadForm.addEventListener('submit', async (e) => {
       const password = row.password.trim();
       const certFilename = (row.certificate_filename || '').trim();
 
-      // Smart image lookup:
-      // 1. Direct filename match (1.png, 2.png)
-      // 2. Base filename without ext
-      // 3. Name-based match (km_chanchal.png, jyoti_hansdah.jpg)
-      // 4. Sequential index fallback (1st image -> 1st participant)
+      // Match certificate image
       const cleanCert = certFilename.toLowerCase().replace(/\.[^/.]+$/, "");
       const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
@@ -487,46 +482,74 @@ uploadForm.addEventListener('submit', async (e) => {
       try {
         let downloadURL = '';
         const effectiveCertName = imageFile.name.split('/').pop().split('\\').pop();
+        const passwordHash = await hashPassword(password);
 
-        if (isFirebaseActive) {
+        if (isSupabaseActive) {
+          // ── Supabase Upload ──
+          const storagePath = `${eventName}/${effectiveCertName}`;
+          addLog(`Row ${rowNum} (${name}): Uploading to Supabase Storage...`, 'info');
+
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('certificates')
+            .upload(storagePath, imageFile, { upsert: true });
+
+          if (uploadErr) {
+            console.warn('Storage upload error, using direct public URL:', uploadErr);
+          }
+
+          const { data: urlData } = supabase.storage
+            .from('certificates')
+            .getPublicUrl(storagePath);
+
+          downloadURL = urlData.publicUrl;
+
+          // Insert / Upsert in Supabase Table
+          const { error: dbErr } = await supabase
+            .from('certificates')
+            .upsert({
+              name: name,
+              email: email,
+              password_hash: passwordHash,
+              certificate_url: downloadURL,
+              certificate_filename: effectiveCertName,
+              event_name: eventName
+            }, { onConflict: 'email' });
+
+          if (dbErr) throw dbErr;
+
+          addLog(`Row ${rowNum} (${name}): Saved to Supabase PostgreSQL for <strong>${email}</strong>.`, 'success');
+
+        } else if (isFirebaseActive) {
+          // ── Firebase Upload ──
           const storagePath = `certificates/${eventName}/${effectiveCertName}`;
           const storageRef = ref(storage, storagePath);
-          addLog(`Row ${rowNum} (${name}): Uploading "${effectiveCertName}" to Firebase Storage...`, 'info');
-
           await uploadBytes(storageRef, imageFile);
           downloadURL = await getDownloadURL(storageRef);
-          addLog(`Row ${rowNum} (${name}): Image uploaded to Cloud Storage.`, 'success');
 
-          const passwordHash = await hashPassword(password);
           const docRef = doc(db, 'certificates', email);
           await setDoc(docRef, {
-            name: name,
-            email: email,
-            passwordHash: passwordHash,
+            name, email, passwordHash,
             certificateUrl: downloadURL,
             certificateFilename: effectiveCertName,
-            eventName: eventName,
+            eventName,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
 
           addLog(`Row ${rowNum} (${name}): Firestore document created for <strong>${email}</strong>.`, 'success');
-        } else {
-          addLog(`Row ${rowNum} (${name}): Processing certificate "${effectiveCertName}"...`, 'info');
-          const dataUrl = await fileToDataURL(imageFile);
-          const passwordHash = await hashPassword(password);
 
+        } else {
+          // ── Local Storage (IndexedDB) ──
+          const dataUrl = await fileToDataURL(imageFile);
           await saveParticipantLocal({
-            name: name,
-            email: email,
-            passwordHash: passwordHash,
+            name, email, passwordHash,
             certificateUrl: dataUrl,
             certificateFilename: effectiveCertName,
-            eventName: eventName,
+            eventName,
             createdAt: new Date().toISOString()
           });
 
-          addLog(`Row ${rowNum} (${name}): Saved locally with SHA-256 password hash.`, 'success');
+          addLog(`Row ${rowNum} (${name}): Saved locally with password hash.`, 'success');
         }
 
         successCount++;
@@ -581,7 +604,6 @@ if (btnQuickSample) {
     addLog('⚡ <strong>Loading sample test dataset (DevHack 2026)...</strong>', 'info');
 
     try {
-      // Fetch sample CSV & images
       const [csvResp, img1Resp, img2Resp] = await Promise.all([
         fetch('/sample-data/test.csv'),
         fetch('/sample-data/1.png'),
@@ -608,7 +630,8 @@ if (btnQuickSample) {
       addLog('Parsing 2 sample participant records...', 'info');
 
       const csvData = parseCSV(csvText);
-      const isFirebaseActive = isConfigured && db && storage;
+      const isSupabaseActive = isSupabaseConfigured && supabase;
+      const isFirebaseActive = isFirebaseConfigured && db && storage;
 
       const imageMap = {
         '1.png': file1,
@@ -627,13 +650,23 @@ if (btnQuickSample) {
         const imageFile = imageMap[certFilename.toLowerCase()] || selectedImageFiles[i];
 
         addLog(`Row ${rowNum} (${name}): Processing certificate "${certFilename}"...`, 'info');
+        const passwordHash = await hashPassword(password);
 
-        if (isFirebaseActive) {
+        if (isSupabaseActive) {
+          const storagePath = `DevHack 2026/${certFilename}`;
+          await supabase.storage.from('certificates').upload(storagePath, imageFile, { upsert: true });
+          const { data: { publicUrl } } = supabase.storage.from('certificates').getPublicUrl(storagePath);
+          await supabase.from('certificates').upsert({
+            name, email, password_hash: passwordHash,
+            certificate_url: publicUrl, certificate_filename: certFilename,
+            event_name: 'DevHack 2026'
+          }, { onConflict: 'email' });
+          addLog(`Row ${rowNum} (${name}): Uploaded to Supabase for <strong>${email}</strong>`, 'success');
+        } else if (isFirebaseActive) {
           const storagePath = `certificates/DevHack 2026/${certFilename}`;
           const storageRef = ref(storage, storagePath);
           await uploadBytes(storageRef, imageFile);
           const downloadURL = await getDownloadURL(storageRef);
-          const passwordHash = await hashPassword(password);
           await setDoc(doc(db, 'certificates', email), {
             name, email, passwordHash, certificateUrl: downloadURL,
             certificateFilename: certFilename, eventName: 'DevHack 2026',
@@ -642,7 +675,6 @@ if (btnQuickSample) {
           addLog(`Row ${rowNum} (${name}): Uploaded to Firebase for <strong>${email}</strong>`, 'success');
         } else {
           const dataUrl = await fileToDataURL(imageFile);
-          const passwordHash = await hashPassword(password);
           await saveParticipantLocal({
             name, email, passwordHash, certificateUrl: dataUrl,
             certificateFilename: certFilename, eventName: 'DevHack 2026',
@@ -684,4 +716,3 @@ resetBtn.addEventListener('click', () => {
   progressSection.classList.add('hidden');
   clearLog();
 });
-
