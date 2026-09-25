@@ -22,7 +22,6 @@ Open `index.html` (Participant Portal) or `admin.html` (Admin Panel) via a local
 
 - **Participant Portal:** `http://localhost:3000`
 - **Admin Panel:** `http://localhost:3000/admin.html`
-- **Default Admin Passphrase:** `devhack2026admin`
 
 ### 2. Connect Firebase (Optional)
 To connect live Firebase cloud storage and database:
