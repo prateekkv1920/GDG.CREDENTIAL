@@ -1,4 +1,4 @@
-# 🎓 DevHack 2026 — Certificate Distribution & Verification Portal
+`# 🎓 DevHack 2026 — Certificate Distribution & Verification Portal
 
 A modern, secure, full-stack certificate distribution and verification portal built for **DevHack 2026**, hosted by **Google Developer Groups (GDG) on Campus IIMT Meerut**.
 
